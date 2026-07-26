@@ -5,9 +5,8 @@ import os
 import threading
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-
-TOKEN = "
-8616527695:AAE8QJ4KjM86Bz_tNNIC6RzmPa6dardIYq4"
+import os
+TOKEN = os.environ.get("8616527695:AAE8QJ4KjM86Bz_tNNIC6RzmPa6dardIYq4")
 
 FORCE_CHANNELS = [
     "https://t.me/+Iv-zATHGpRgzMWE0",
