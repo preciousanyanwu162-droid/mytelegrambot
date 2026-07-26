@@ -22,7 +22,7 @@ SHORT_LINKS = [
 
 "https://shrinkme.click/aqio"
 
-"https://shrinkme.click/eT5dD
+"https://shrinkme.click/eT5dD"
 
 "https://shrinkme.click/QVq7ORA"
 
