@@ -8,9 +8,10 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import os
 TOKEN = os.environ.get("BOT_TOKEN").strip()
 FORCE_CHANNELS = [
-    "@SwiftNairaProofs",
-    "@SwiftNairaUpdates",
-    "@SwiftNairaPayouts"
+    "-1004415985901",
+    "-1004428716884",
+    "-1003946707842"
+]
 ]
 SHORT_LINKS = [
     "https://shrinkme.click/HjpVb4"
