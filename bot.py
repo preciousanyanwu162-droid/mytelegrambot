@@ -40,9 +40,9 @@ SHORT_LINKS = [
 TIMEBUCKS_REF_LINK = "https://timebucks.com/?refID=229160569"
 PEERPURPSE_CODE = "360366"
 
-ADMIN_ID = 7109418504   # Your Telegram ID
+ADMIN_ID = 7109418504
 user_data = {}
-pending_withdraw = {}   # Tracks users waiting to send bank details
+pending_withdraw = {}
 DATA_FILE = "data.json"
 WITHDRAW_MIN = 3000
 
@@ -50,7 +50,7 @@ WITHDRAW_MIN = 3000
 main_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
 main_keyboard.row(KeyboardButton("💰 Earn"), KeyboardButton("💳 Balance"))
 main_keyboard.row(KeyboardButton("🏧 Withdraw"), KeyboardButton("🔗 Referral"))
-main_keyboard.row(KeyboardButton("🎁 TimeBucks"), KeyboardButton("🎁 PeerPurple"))
+main_keyboard.row(KeyboardButton("🎁 TimeBucks"), KeyboardButton("🎁 PeerPurse"))
 
 if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "r") as f:
@@ -93,38 +93,50 @@ def start(msg):
         "🏧 Withdraw – /withdraw\n"
         "🔗 Referral – /referral\n"
         "🎁 TimeBucks – /jointask1\n"
-        "🎁 PeerPurple – /jointask2\n"
+        "🎁 PeerPurse – /jointask2\n"
         f"Minimum withdrawal: ₦{WITHDRAW_MIN}",
         reply_markup=main_keyboard)
 
-# ---------- HANDLE BUTTONS (they just send the corresponding command) ----------
-@bot.message_handler(func=lambda msg: msg.text in ["💰 Earn", "💳 Balance", "🏧 Withdraw", "🔗 Referral", "🎁 TimeBucks", "🎁 PeerPurple"])
-def handle_buttons(msg):
-    cmd_map = {
-        "💰 Earn": "/clicktask",
-        "💳 Balance": "/balance",
-        "🏧 Withdraw": "/withdraw",
-        "🔗 Referral": "/referral",
-        "🎁 TimeBucks": "/jointask1",
-        "🎁 PeerPurple": "/jointask2"
-    }
-    # Simulate the command by directly calling the respective handler
-    cmd = cmd_map[msg.text]
-    # We'll just execute the command function directly using a small trick:
-    # We'll create a fake message object? Not possible easily. Simpler: send the text as command
-    msg.text = cmd
-    if cmd == "/clicktask":
-        clicktask(msg)
-    elif cmd == "/balance":
-        balance(msg)
-    elif cmd == "/withdraw":
-        withdraw(msg)
-    elif cmd == "/referral":
-        referral(msg)
-    elif cmd == "/jointask1":
-        jointask1(msg)
-    elif cmd == "/jointask2":
-        jointask2(msg)
+# ---------- UNIVERSAL TEXT HANDLER (buttons + bank details) ----------
+BUTTON_MAP = {
+    "💰 Earn": "/clicktask",
+    "💳 Balance": "/balance",
+    "🏧 Withdraw": "/withdraw",
+    "🔗 Referral": "/referral",
+    "🎁 TimeBucks": "/jointask1",
+    "🎁 PeerPurse": "/jointask2"
+}
+
+@bot.message_handler(func=lambda msg: True, content_types=['text'])
+def universal_text_handler(msg):
+    uid = str(msg.from_user.id)
+    text = msg.text.strip()
+
+    # 1. If the message is a button label, execute the corresponding command.
+    if text in BUTTON_MAP:
+        cmd = BUTTON_MAP[text]
+        msg.text = cmd  # So the command handlers can recognise it
+        if cmd == "/clicktask":
+            clicktask(msg)
+        elif cmd == "/balance":
+            balance(msg)
+        elif cmd == "/withdraw":
+            withdraw(msg)
+        elif cmd == "/referral":
+            referral(msg)
+        elif cmd == "/jointask1":
+            jointask1(msg)
+        elif cmd == "/jointask2":
+            jointask2(msg)
+        return
+
+    # 2. If the user is in pending withdrawal mode, treat this as bank details.
+    if pending_withdraw.get(uid, False):
+        collect_bank_details(msg)
+        return
+
+    # 3. Otherwise, ignore the text (or you can send a helpful message)
+    bot.send_message(msg.chat.id, "🤔 I didn't understand that. Please use the buttons or commands.", reply_markup=main_keyboard)
 
 # ---------- CLICK TASK ----------
 @bot.message_handler(commands=['clicktask'])
@@ -201,11 +213,9 @@ def withdraw(msg):
     bot.send_message(msg.chat.id, "📝 To withdraw, please send your **bank name** and **account number**. We process payouts every Friday.", reply_markup=main_keyboard)
     pending_withdraw[uid] = True
 
-# ---------- CAPTURE BANK DETAILS ----------
-@bot.message_handler(func=lambda msg: pending_withdraw.get(str(msg.from_user.id), False))
+# ---------- COLLECT BANK DETAILS (only called from universal handler) ----------
 def collect_bank_details(msg):
     uid = str(msg.from_user.id)
-    # Forward the user's message to admin
     bot.forward_message(ADMIN_ID, msg.chat.id, msg.message_id)
     bot.send_message(msg.chat.id, "✅ Your details have been sent. We will process your withdrawal soon.", reply_markup=main_keyboard)
     pending_withdraw[uid] = False
@@ -227,7 +237,7 @@ def start_ref(msg):
     save_data()
     start(msg)
 
-# ---------- EXTRA TASK 1 ----------
+# ---------- EXTRA TASK 1 (TIMEBUCKS) ----------
 @bot.message_handler(commands=['jointask1'])
 def jointask1(msg):
     if not check_channels(msg.from_user.id):
@@ -254,7 +264,7 @@ def timebucks_done(call):
     bot.answer_callback_query(call.id, "₦200 added!")
     bot.edit_message_text("✅ ₦200 added to your balance. Check /balance.", call.message.chat.id, call.message.message_id)
 
-# ---------- EXTRA TASK 2 ----------
+# ---------- EXTRA TASK 2 (PEERPURSE) ----------
 @bot.message_handler(commands=['jointask2'])
 def jointask2(msg):
     if not check_channels(msg.from_user.id):
@@ -263,17 +273,17 @@ def jointask2(msg):
     if uid not in user_data:
         user_data[uid] = {"balance": 0, "clicks": 0, "referrer": None, "ref_credited": False}
     bot.send_message(msg.chat.id,
-        f"📌 **Task: Sign up on PeerPurple**\n\n"
+        f"📌 **Task: Sign up on PeerPurse**\n\n"
         f"1. Use this referral code during signup: **{PEERPURPSE_CODE}**\n"
         f"2. Complete your **KYC verification** (ID upload).\n"
         f"3. Once done, press the button below to claim ₦150.\n\n"
         f"⚠️ You must complete KYC to qualify.",
         parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("I've completed KYC ✅", callback_data=f"peerpurple_{uid}"))
+        reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("I've completed KYC ✅", callback_data=f"peerpurse_{uid}"))
     )
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('peerpurple_'))
-def peerpurple_done(call):
+def peerpurse_done(call):
     uid = str(call.from_user.id)
     if uid not in user_data:
         user_data[uid] = {"balance": 0, "clicks": 0, "referrer": None, "ref_credited": False}
