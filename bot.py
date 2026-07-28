@@ -7,10 +7,11 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 TOKEN = os.environ.get("BOT_TOKEN").strip()
 
-INVITE_LINKS = [
-    "https://t.me/+Iv-zATHGpRgzMWE0",
-    "https://t.me/+hxZ4s8z11-xjODY0",
-    "https://t.me/+YrXJzzRL3CJkZGFk"
+# ----- YOUR REAL CHAT IDs -----
+FORCE_CHANNELS = [
+    "-1004415985901",
+    "-1004428716884",
+    "-1003946707842"
 ]
 
 SHORT_LINKS = [
@@ -44,9 +45,6 @@ user_data = {}
 DATA_FILE = "data.json"
 WITHDRAW_MIN = 3000
 
-# This will hold the real chat IDs after the bot joins the channels.
-CHAT_IDS = []
-
 if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "r") as f:
         user_data = json.load(f)
@@ -57,23 +55,8 @@ def save_data():
 
 bot = telebot.TeleBot(TOKEN)
 
-def join_and_get_chat_ids():
-    """Make the bot join each private channel and store its chat ID."""
-    global CHAT_IDS
-    for link in INVITE_LINKS:
-        try:
-            # The bot joins the channel via the invite link.
-            chat = bot.join_chat_by_invite_link(link)
-            CHAT_IDS.append(chat.id)
-        except Exception as e:
-            print(f"Failed to join {link}: {e}")
-
-# Call the join function once at startup.
-join_and_get_chat_ids()
-
 def check_channels(user_id):
-    """Check if user is a member of all joined channels using stored chat IDs."""
-    for chat_id in CHAT_IDS:
+    for chat_id in FORCE_CHANNELS:
         try:
             member = bot.get_chat_member(chat_id, user_id)
             if member.status in ['left', 'kicked', 'banned']:
@@ -90,8 +73,14 @@ def start(msg):
         ADMIN_ID = msg.chat.id
     if not check_channels(msg.from_user.id):
         markup = InlineKeyboardMarkup()
-        for ch in INVITE_LINKS:
-            markup.add(InlineKeyboardButton("Join Channel", url=ch))
+        # The invite links for users to join (same as before)
+        invite_links = [
+            "https://t.me/+Iv-zATHGpRgzMWE0",
+            "https://t.me/+hxZ4s8z11-xjODY0",
+            "https://t.me/+YrXJzzRL3CJkZGFk"
+        ]
+        for link in invite_links:
+            markup.add(InlineKeyboardButton("Join Channel", url=link))
         bot.send_message(msg.chat.id, "🚫 You must join all our channels to use this bot.", reply_markup=markup)
         return
     bot.send_message(msg.chat.id, "✅ Welcome! Use /clicktask to earn ₦20 per click.\n/balance – check balance\n/withdraw – cash out at ₦" + str(WITHDRAW_MIN) + "\n/referral – get your referral link\n/jointask1 – earn bonus\n/jointask2 – earn bonus")
@@ -101,8 +90,13 @@ def start(msg):
 def clicktask(msg):
     if not check_channels(msg.from_user.id):
         markup = InlineKeyboardMarkup()
-        for ch in INVITE_LINKS:
-            markup.add(InlineKeyboardButton("Join Channel", url=ch))
+        invite_links = [
+            "https://t.me/+Iv-zATHGpRgzMWE0",
+            "https://t.me/+hxZ4s8z11-xjODY0",
+            "https://t.me/+YrXJzzRL3CJkZGFk"
+        ]
+        for link in invite_links:
+            markup.add(InlineKeyboardButton("Join Channel", url=link))
         bot.send_message(msg.chat.id, "🚫 You must join all channels first.", reply_markup=markup)
         return
 
