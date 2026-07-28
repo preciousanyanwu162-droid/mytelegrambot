@@ -8,9 +8,9 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import os
 TOKEN = os.environ.get("BOT_TOKEN").strip()
 FORCE_CHANNELS = [
-    "-1004415985901",
-    "-1004428716884",
-    "-1003946707842"
+    "https://t.me/+Iv-zATHGpRgzMWE0",
+    "https://t.me/+hxZ4s8z11-xjODY0",
+    "https://t.me/+YrXJzzRL3CJkZGFk"
 ]
 
 SHORT_LINKS = [
