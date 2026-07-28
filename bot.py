@@ -3,7 +3,7 @@ import random
 import json
 import os
 import threading
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 
 TOKEN = os.environ.get("BOT_TOKEN").strip()
 
@@ -40,10 +40,17 @@ SHORT_LINKS = [
 TIMEBUCKS_REF_LINK = "https://timebucks.com/?refID=229160569"
 PEERPURPSE_CODE = "360366"
 
-ADMIN_ID = None
+ADMIN_ID = 7109418504   # Your Telegram ID
 user_data = {}
+pending_withdraw = {}   # Tracks users waiting to send bank details
 DATA_FILE = "data.json"
 WITHDRAW_MIN = 3000
+
+# ----- Reply Keyboard -----
+main_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
+main_keyboard.row(KeyboardButton("💰 Earn"), KeyboardButton("💳 Balance"))
+main_keyboard.row(KeyboardButton("🏧 Withdraw"), KeyboardButton("🔗 Referral"))
+main_keyboard.row(KeyboardButton("🎁 TimeBucks"), KeyboardButton("🎁 PeerPurple"))
 
 if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "r") as f:
@@ -68,12 +75,8 @@ def check_channels(user_id):
 # ---------- START ----------
 @bot.message_handler(commands=['start'])
 def start(msg):
-    global ADMIN_ID
-    if not ADMIN_ID:
-        ADMIN_ID = msg.chat.id
     if not check_channels(msg.from_user.id):
         markup = InlineKeyboardMarkup()
-        # The invite links for users to join (same as before)
         invite_links = [
             "https://t.me/+Iv-zATHGpRgzMWE0",
             "https://t.me/+hxZ4s8z11-xjODY0",
@@ -83,7 +86,45 @@ def start(msg):
             markup.add(InlineKeyboardButton("Join Channel", url=link))
         bot.send_message(msg.chat.id, "🚫 You must join all our channels to use this bot.", reply_markup=markup)
         return
-    bot.send_message(msg.chat.id, "✅ Welcome! Use /clicktask to earn ₦20 per click.\n/balance – check balance\n/withdraw – cash out at ₦" + str(WITHDRAW_MIN) + "\n/referral – get your referral link\n/jointask1 – earn bonus\n/jointask2 – earn bonus")
+    bot.send_message(msg.chat.id, 
+        "✅ Welcome! Use the buttons below or commands:\n"
+        "💰 Earn – /clicktask (₦20 per click)\n"
+        "💳 Balance – /balance\n"
+        "🏧 Withdraw – /withdraw\n"
+        "🔗 Referral – /referral\n"
+        "🎁 TimeBucks – /jointask1\n"
+        "🎁 PeerPurple – /jointask2\n"
+        f"Minimum withdrawal: ₦{WITHDRAW_MIN}",
+        reply_markup=main_keyboard)
+
+# ---------- HANDLE BUTTONS (they just send the corresponding command) ----------
+@bot.message_handler(func=lambda msg: msg.text in ["💰 Earn", "💳 Balance", "🏧 Withdraw", "🔗 Referral", "🎁 TimeBucks", "🎁 PeerPurple"])
+def handle_buttons(msg):
+    cmd_map = {
+        "💰 Earn": "/clicktask",
+        "💳 Balance": "/balance",
+        "🏧 Withdraw": "/withdraw",
+        "🔗 Referral": "/referral",
+        "🎁 TimeBucks": "/jointask1",
+        "🎁 PeerPurple": "/jointask2"
+    }
+    # Simulate the command by directly calling the respective handler
+    cmd = cmd_map[msg.text]
+    # We'll just execute the command function directly using a small trick:
+    # We'll create a fake message object? Not possible easily. Simpler: send the text as command
+    msg.text = cmd
+    if cmd == "/clicktask":
+        clicktask(msg)
+    elif cmd == "/balance":
+        balance(msg)
+    elif cmd == "/withdraw":
+        withdraw(msg)
+    elif cmd == "/referral":
+        referral(msg)
+    elif cmd == "/jointask1":
+        jointask1(msg)
+    elif cmd == "/jointask2":
+        jointask2(msg)
 
 # ---------- CLICK TASK ----------
 @bot.message_handler(commands=['clicktask'])
@@ -101,7 +142,7 @@ def clicktask(msg):
         return
 
     link = random.choice(SHORT_LINKS)
-    sent = bot.send_message(msg.chat.id, f"🔗 Click this link and wait 30 seconds for the page to load:\n\n{link}")
+    sent = bot.send_message(msg.chat.id, f"🔗 Click this link and wait 30 seconds for the page to load:\n\n{link}", reply_markup=main_keyboard)
     def add_done_button():
         markup = InlineKeyboardMarkup()
         markup.add(InlineKeyboardButton("DONE ✅", callback_data=f"done_{msg.from_user.id}_{link}"))
@@ -147,7 +188,7 @@ def done_callback(call):
 def balance(msg):
     uid = str(msg.from_user.id)
     bal = user_data.get(uid, {}).get("balance", 0)
-    bot.send_message(msg.chat.id, f"💰 Your balance: ₦{bal}")
+    bot.send_message(msg.chat.id, f"💰 Your balance: ₦{bal}", reply_markup=main_keyboard)
 
 # ---------- WITHDRAWAL ----------
 @bot.message_handler(commands=['withdraw'])
@@ -155,17 +196,25 @@ def withdraw(msg):
     uid = str(msg.from_user.id)
     bal = user_data.get(uid, {}).get("balance", 0)
     if bal < WITHDRAW_MIN:
-        bot.send_message(msg.chat.id, f"🏧 Minimum withdrawal is ₦{WITHDRAW_MIN}. Your balance: ₦{bal}")
+        bot.send_message(msg.chat.id, f"🏧 Minimum withdrawal is ₦{WITHDRAW_MIN}. Your balance: ₦{bal}", reply_markup=main_keyboard)
         return
-    bot.send_message(msg.chat.id, "📝 To withdraw, please send your **bank name** and **account number**. We process payouts every Friday.")
-    if ADMIN_ID:
-        bot.forward_message(ADMIN_ID, msg.chat.id, msg.message_id)
+    bot.send_message(msg.chat.id, "📝 To withdraw, please send your **bank name** and **account number**. We process payouts every Friday.", reply_markup=main_keyboard)
+    pending_withdraw[uid] = True
+
+# ---------- CAPTURE BANK DETAILS ----------
+@bot.message_handler(func=lambda msg: pending_withdraw.get(str(msg.from_user.id), False))
+def collect_bank_details(msg):
+    uid = str(msg.from_user.id)
+    # Forward the user's message to admin
+    bot.forward_message(ADMIN_ID, msg.chat.id, msg.message_id)
+    bot.send_message(msg.chat.id, "✅ Your details have been sent. We will process your withdrawal soon.", reply_markup=main_keyboard)
+    pending_withdraw[uid] = False
 
 # ---------- REFERRAL ----------
 @bot.message_handler(commands=['referral'])
 def referral(msg):
     bot_name = bot.get_me().username
-    bot.send_message(msg.chat.id, f"🔗 Your referral link:\nhttps://t.me/{bot_name}?start=ref_{msg.from_user.id}\n\nShare it. When someone joins and completes 10 click tasks, you get ₦100.")
+    bot.send_message(msg.chat.id, f"🔗 Your referral link:\nhttps://t.me/{bot_name}?start=ref_{msg.from_user.id}\n\nShare it. When someone joins and completes 10 click tasks, you get ₦100.", reply_markup=main_keyboard)
 
 @bot.message_handler(commands=['start'], func=lambda msg: msg.text and msg.text.startswith('/start ref_'))
 def start_ref(msg):
