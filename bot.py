@@ -5,65 +5,47 @@ import os
 import threading
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-import os
 TOKEN = os.environ.get("BOT_TOKEN").strip()
-FORCE_CHANNELS = [
+
+INVITE_LINKS = [
     "https://t.me/+Iv-zATHGpRgzMWE0",
     "https://t.me/+hxZ4s8z11-xjODY0",
     "https://t.me/+YrXJzzRL3CJkZGFk"
 ]
 
 SHORT_LINKS = [
-    "https://shrinkme.click/HjpVb4"
-
-"https://shrinkme.click/TFNr"
-
-"https://shrinkme.click/7dlJNh"
-
-"https://shrinkme.click/aqio"
-
-"https://shrinkme.click/eT5dD"
-
-"https://shrinkme.click/QVq7ORA"
-
-"https://shrinkme.click/DIDgTgj"
-
-"https://shrinkme.click/knFsUK"
-
-"https://shrinkme.click/RB8A"
-
-"https://shrinkme.click/GLq1LvB"
-
-"https://shrinkme.click/QZmEvz"
-
-"https://shrinkme.click/PFozE"
-
-"https://shrinkme.click/DYK4sCoZ"
-
-"https://shrinkme.click/JehWnx"
-
-"https://shrinkme.click/VyGwD0"
-
-"https://shrinkme.click/0QyuKRxG"
-
-"https://shrinkme.click/KFof1MLu"
-
-"https://shrinkme.click/RM4lYp"
-
-"https://shrinkme.click/H5mXYrOx"
-
-"https://shrinkme.click/U4K1Yr",
-  
+    "https://shrinkme.click/HjpVb4",
+    "https://shrinkme.click/TFNr",
+    "https://shrinkme.click/7dlJNh",
+    "https://shrinkme.click/aqio",
+    "https://shrinkme.click/eT5dD",
+    "https://shrinkme.click/QVq7ORA",
+    "https://shrinkme.click/DIDgTgj",
+    "https://shrinkme.click/knFsUK",
+    "https://shrinkme.click/RB8A",
+    "https://shrinkme.click/GLq1LvB",
+    "https://shrinkme.click/QZmEvz",
+    "https://shrinkme.click/PFozE",
+    "https://shrinkme.click/DYK4sCoZ",
+    "https://shrinkme.click/JehWnx",
+    "https://shrinkme.click/VyGwD0",
+    "https://shrinkme.click/0QyuKRxG",
+    "https://shrinkme.click/KFof1MLu",
+    "https://shrinkme.click/RM4lYp",
+    "https://shrinkme.click/H5mXYrOx",
+    "https://shrinkme.click/U4K1Yr"
 ]
 
 TIMEBUCKS_REF_LINK = "https://timebucks.com/?refID=229160569"
-PEERPURSE_CODE = "360366"
-# =====================================================================
+PEERPURPSE_CODE = "360366"
 
 ADMIN_ID = None
 user_data = {}
 DATA_FILE = "data.json"
-WITHDRAW_MIN = 3000   
+WITHDRAW_MIN = 3000
+
+# This will hold the real chat IDs after the bot joins the channels.
+CHAT_IDS = []
 
 if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "r") as f:
@@ -75,10 +57,25 @@ def save_data():
 
 bot = telebot.TeleBot(TOKEN)
 
-def check_channels(user_id):
-    for ch in FORCE_CHANNELS:
+def join_and_get_chat_ids():
+    """Make the bot join each private channel and store its chat ID."""
+    global CHAT_IDS
+    for link in INVITE_LINKS:
         try:
-            member = bot.get_chat_member(ch, user_id)
+            # The bot joins the channel via the invite link.
+            chat = bot.join_chat_by_invite_link(link)
+            CHAT_IDS.append(chat.id)
+        except Exception as e:
+            print(f"Failed to join {link}: {e}")
+
+# Call the join function once at startup.
+join_and_get_chat_ids()
+
+def check_channels(user_id):
+    """Check if user is a member of all joined channels using stored chat IDs."""
+    for chat_id in CHAT_IDS:
+        try:
+            member = bot.get_chat_member(chat_id, user_id)
             if member.status in ['left', 'kicked', 'banned']:
                 return False
         except:
@@ -93,7 +90,7 @@ def start(msg):
         ADMIN_ID = msg.chat.id
     if not check_channels(msg.from_user.id):
         markup = InlineKeyboardMarkup()
-        for ch in FORCE_CHANNELS:
+        for ch in INVITE_LINKS:
             markup.add(InlineKeyboardButton("Join Channel", url=ch))
         bot.send_message(msg.chat.id, "🚫 You must join all our channels to use this bot.", reply_markup=markup)
         return
@@ -104,7 +101,7 @@ def start(msg):
 def clicktask(msg):
     if not check_channels(msg.from_user.id):
         markup = InlineKeyboardMarkup()
-        for ch in FORCE_CHANNELS:
+        for ch in INVITE_LINKS:
             markup.add(InlineKeyboardButton("Join Channel", url=ch))
         bot.send_message(msg.chat.id, "🚫 You must join all channels first.", reply_markup=markup)
         return
@@ -158,7 +155,7 @@ def balance(msg):
     bal = user_data.get(uid, {}).get("balance", 0)
     bot.send_message(msg.chat.id, f"💰 Your balance: ₦{bal}")
 
-# ---------- WITHDRAWAL (CASH) ----------
+# ---------- WITHDRAWAL ----------
 @bot.message_handler(commands=['withdraw'])
 def withdraw(msg):
     uid = str(msg.from_user.id)
@@ -187,7 +184,7 @@ def start_ref(msg):
     save_data()
     start(msg)
 
-# ---------- EXTRA TASK 1 (TIMEBUCKS) ₦100 ----------
+# ---------- EXTRA TASK 1 ----------
 @bot.message_handler(commands=['jointask1'])
 def jointask1(msg):
     if not check_channels(msg.from_user.id):
@@ -214,7 +211,7 @@ def timebucks_done(call):
     bot.answer_callback_query(call.id, "₦200 added!")
     bot.edit_message_text("✅ ₦200 added to your balance. Check /balance.", call.message.chat.id, call.message.message_id)
 
-# ---------- EXTRA TASK 2 (PEERPURSE) ₦200 ----------
+# ---------- EXTRA TASK 2 ----------
 @bot.message_handler(commands=['jointask2'])
 def jointask2(msg):
     if not check_channels(msg.from_user.id):
@@ -224,7 +221,7 @@ def jointask2(msg):
         user_data[uid] = {"balance": 0, "clicks": 0, "referrer": None, "ref_credited": False}
     bot.send_message(msg.chat.id,
         f"📌 **Task: Sign up on PeerPurple**\n\n"
-        f"1. Use this referral code during signup: **{PEERPURPLE_CODE}**\n"
+        f"1. Use this referral code during signup: **{PEERPURPSE_CODE}**\n"
         f"2. Complete your **KYC verification** (ID upload).\n"
         f"3. Once done, press the button below to claim ₦150.\n\n"
         f"⚠️ You must complete KYC to qualify.",
