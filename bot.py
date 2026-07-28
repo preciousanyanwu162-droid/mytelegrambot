@@ -12,7 +12,7 @@ FORCE_CHANNELS = [
     "-1004428716884",
     "-1003946707842"
 ]
-]
+
 SHORT_LINKS = [
     "https://shrinkme.click/HjpVb4"
 
