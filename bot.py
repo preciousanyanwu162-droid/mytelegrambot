@@ -38,7 +38,7 @@ SHORT_LINKS = [
 ]
 
 TIMEBUCKS_REF_LINK = "https://timebucks.com/?refID=229160569"
-PEERPURPSE_CODE = "360366"
+PEERPURSE_CODE = "360366"
 
 ADMIN_ID = 7109418504
 user_data = {}
@@ -88,7 +88,7 @@ def start(msg):
         return
     bot.send_message(msg.chat.id, 
         "✅ Welcome! Use the buttons below or commands:\n"
-        "💰 Earn – /clicktask (₦20 per click)\n"
+        "💰 Earn – /clicktask (₦10 per click)\n"
         "💳 Balance – /balance\n"
         "🏧 Withdraw – /withdraw\n"
         "🔗 Referral – /referral\n"
@@ -112,10 +112,9 @@ def universal_text_handler(msg):
     uid = str(msg.from_user.id)
     text = msg.text.strip()
 
-    # 1. If the message is a button label, execute the corresponding command.
     if text in BUTTON_MAP:
         cmd = BUTTON_MAP[text]
-        msg.text = cmd  # So the command handlers can recognise it
+        msg.text = cmd
         if cmd == "/clicktask":
             clicktask(msg)
         elif cmd == "/balance":
@@ -130,12 +129,10 @@ def universal_text_handler(msg):
             jointask2(msg)
         return
 
-    # 2. If the user is in pending withdrawal mode, treat this as bank details.
     if pending_withdraw.get(uid, False):
         collect_bank_details(msg)
         return
 
-    # 3. Otherwise, ignore the text (or you can send a helpful message)
     bot.send_message(msg.chat.id, "🤔 I didn't understand that. Please use the buttons or commands.", reply_markup=main_keyboard)
 
 # ---------- CLICK TASK ----------
@@ -179,7 +176,7 @@ def done_callback(call):
 
     if uid not in user_data:
         user_data[uid] = {"balance": 0, "clicks": 0, "referrer": None, "ref_credited": False}
-    user_data[uid]["balance"] += 20
+    user_data[uid]["balance"] += 10   # Changed from 20 to 10
     user_data[uid]["clicks"] += 1
 
     if user_data[uid].get("referrer") and not user_data[uid].get("ref_credited"):
@@ -192,8 +189,8 @@ def done_callback(call):
                 bot.send_message(int(ref_uid), "🎉 Your referral completed 10 click tasks! ₦100 added.")
     save_data()
 
-    bot.answer_callback_query(call.id, f"₦20 added! Balance: ₦{user_data[uid]['balance']}")
-    bot.edit_message_text(f"✅ ₦20 added! Your balance: ₦{user_data[uid]['balance']}\nUse /clicktask for another link.", call.message.chat.id, call.message.message_id)
+    bot.answer_callback_query(call.id, f"₦10 added! Balance: ₦{user_data[uid]['balance']}")
+    bot.edit_message_text(f"✅ ₦10 added! Your balance: ₦{user_data[uid]['balance']}\nUse /clicktask for another link.", call.message.chat.id, call.message.message_id)
 
 # ---------- BALANCE ----------
 @bot.message_handler(commands=['balance'])
@@ -213,7 +210,6 @@ def withdraw(msg):
     bot.send_message(msg.chat.id, "📝 To withdraw, please send your **bank name** and **account number**. We process payouts every Friday.", reply_markup=main_keyboard)
     pending_withdraw[uid] = True
 
-# ---------- COLLECT BANK DETAILS (only called from universal handler) ----------
 def collect_bank_details(msg):
     uid = str(msg.from_user.id)
     bot.forward_message(ADMIN_ID, msg.chat.id, msg.message_id)
@@ -274,7 +270,7 @@ def jointask2(msg):
         user_data[uid] = {"balance": 0, "clicks": 0, "referrer": None, "ref_credited": False}
     bot.send_message(msg.chat.id,
         f"📌 **Task: Sign up on PeerPurse**\n\n"
-        f"1. Use this referral code during signup: **{PEERPURPSE_CODE}**\n"
+        f"1. Use this referral code during signup: **{PEERPURSE_CODE}**\n"
         f"2. Complete your **KYC verification** (ID upload).\n"
         f"3. Once done, press the button below to claim ₦150.\n\n"
         f"⚠️ You must complete KYC to qualify.",
@@ -282,7 +278,7 @@ def jointask2(msg):
         reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("I've completed KYC ✅", callback_data=f"peerpurse_{uid}"))
     )
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith('peerpurple_'))
+@bot.callback_query_handler(func=lambda call: call.data.startswith('peerpurse_'))
 def peerpurse_done(call):
     uid = str(call.from_user.id)
     if uid not in user_data:
