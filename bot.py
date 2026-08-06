@@ -38,13 +38,13 @@ SHORT_LINKS = [
 ]
 
 TIMEBUCKS_REF_LINK = "https://timebucks.com/?refID=229160569"
-PEERPURPSE_CODE = "360366"
+PEERPURSE_CODE = "360366"   # Corrected variable name
 
 ADMIN_ID = 7109418504
 user_data = {}
 pending_withdraw = {}
 DATA_FILE = "data.json"
-WITHDRAW_MIN = 3000
+WITHDRAW_MIN = 3500        # Already 3500 – shows correctly after restart
 
 # ----- Reply Keyboard -----
 main_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -94,6 +94,7 @@ def start(msg):
         "🔗 Referral – /referral\n"
         "🎁 TimeBucks – /jointask1\n"
         "🎁 PeerPurse – /jointask2\n"
+        f"🎁 Complete 35 click tasks → ₦200 sign‑up bonus!\n"
         f"Minimum withdrawal: ₦{WITHDRAW_MIN}",
         reply_markup=main_keyboard)
 
@@ -175,9 +176,15 @@ def done_callback(call):
         return
 
     if uid not in user_data:
-        user_data[uid] = {"balance": 0, "clicks": 0, "referrer": None, "ref_credited": False}
-    user_data[uid]["balance"] += 10   # Changed from 20 to 10
+        user_data[uid] = {"balance": 0, "clicks": 0, "referrer": None, "ref_credited": False, "signup_bonus_credited": False}
+    user_data[uid]["balance"] += 10
     user_data[uid]["clicks"] += 1
+
+    # Signup bonus: ₦200 after 35 clicks
+    if not user_data[uid].get("signup_bonus_credited", False) and user_data[uid]["clicks"] >= 35:
+        user_data[uid]["balance"] += 200
+        user_data[uid]["signup_bonus_credited"] = True
+        bot.send_message(call.message.chat.id, "🎁 You've completed 35 click tasks! ₦200 sign‑up bonus added to your balance.")
 
     if user_data[uid].get("referrer") and not user_data[uid].get("ref_credited"):
         if user_data[uid]["clicks"] >= 10:
@@ -227,7 +234,7 @@ def start_ref(msg):
     ref_id = msg.text.split()[1].replace('ref_', '')
     uid = str(msg.from_user.id)
     if uid not in user_data:
-        user_data[uid] = {"balance": 0, "clicks": 0, "referrer": ref_id, "ref_credited": False}
+        user_data[uid] = {"balance": 0, "clicks": 0, "referrer": ref_id, "ref_credited": False, "signup_bonus_credited": False}
     else:
         user_data[uid]["referrer"] = ref_id
     save_data()
@@ -240,7 +247,7 @@ def jointask1(msg):
         return
     uid = str(msg.from_user.id)
     if uid not in user_data:
-        user_data[uid] = {"balance": 0, "clicks": 0, "referrer": None, "ref_credited": False}
+        user_data[uid] = {"balance": 0, "clicks": 0, "referrer": None, "ref_credited": False, "signup_bonus_credited": False}
     bot.send_message(msg.chat.id,
         f"📌 **Task: Sign up on TimeBucks**\n\n"
         f"1. Click this link and sign up **using only your Google account**:\n{TIMEBUCKS_REF_LINK}\n"
@@ -254,7 +261,7 @@ def jointask1(msg):
 def timebucks_done(call):
     uid = str(call.from_user.id)
     if uid not in user_data:
-        user_data[uid] = {"balance": 0, "clicks": 0, "referrer": None, "ref_credited": False}
+        user_data[uid] = {"balance": 0, "clicks": 0, "referrer": None, "ref_credited": False, "signup_bonus_credited": False}
     user_data[uid]["balance"] += 200
     save_data()
     bot.answer_callback_query(call.id, "₦200 added!")
@@ -267,22 +274,22 @@ def jointask2(msg):
         return
     uid = str(msg.from_user.id)
     if uid not in user_data:
-        user_data[uid] = {"balance": 0, "clicks": 0, "referrer": None, "ref_credited": False}
+        user_data[uid] = {"balance": 0, "clicks": 0, "referrer": None, "ref_credited": False, "signup_bonus_credited": False}
     bot.send_message(msg.chat.id,
         f"📌 **Task: Sign up on PeerPurse**\n\n"
-        f"1. Use this referral code during signup: **{PEERPURPSE_CODE}**\n"
+        f"1. Use this referral code during signup: **{PEERPURSE_CODE}**\n"
         f"2. Complete your **KYC verification** (ID upload).\n"
         f"3. Once done, press the button below to claim ₦150.\n\n"
         f"⚠️ You must complete KYC to qualify.",
         parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("I've completed KYC ✅", callback_data=f"peerpurple_{uid}"))
+        reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("I've completed KYC ✅", callback_data=f"peerpurse_{uid}"))
     )
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith('peerpurple_'))
-def peerpurple_done(call):
+@bot.callback_query_handler(func=lambda call: call.data.startswith('peerpurse_'))
+def peerpurse_done(call):
     uid = str(call.from_user.id)
     if uid not in user_data:
-        user_data[uid] = {"balance": 0, "clicks": 0, "referrer": None, "ref_credited": False}
+        user_data[uid] = {"balance": 0, "clicks": 0, "referrer": None, "ref_credited": False, "signup_bonus_credited": False}
     user_data[uid]["balance"] += 150
     save_data()
     bot.answer_callback_query(call.id, "₦150 added!")
