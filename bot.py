@@ -38,13 +38,13 @@ SHORT_LINKS = [
 ]
 
 TIMEBUCKS_REF_LINK = "https://timebucks.com/?refID=229160569"
-PEERPURPSE_CODE = "360366"
+PEERPURSE_CODE = "360366"   # Corrected variable name
 
 ADMIN_ID = 7109418504
 user_data = {}
 pending_withdraw = {}
 DATA_FILE = "data.json"
-WITHDRAW_MIN = 3500   # Increased from 3000 to 3500
+WITHDRAW_MIN = 3500        # Already 3500 – shows correctly after restart
 
 # ----- Reply Keyboard -----
 main_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -94,6 +94,7 @@ def start(msg):
         "🔗 Referral – /referral\n"
         "🎁 TimeBucks – /jointask1\n"
         "🎁 PeerPurse – /jointask2\n"
+        f"🎁 Complete 35 click tasks → ₦200 sign‑up bonus!\n"
         f"Minimum withdrawal: ₦{WITHDRAW_MIN}",
         reply_markup=main_keyboard)
 
@@ -276,7 +277,7 @@ def jointask2(msg):
         user_data[uid] = {"balance": 0, "clicks": 0, "referrer": None, "ref_credited": False, "signup_bonus_credited": False}
     bot.send_message(msg.chat.id,
         f"📌 **Task: Sign up on PeerPurse**\n\n"
-        f"1. Use this referral code during signup: **{PEERPURPSE_CODE}**\n"
+        f"1. Use this referral code during signup: **{PEERPURSE_CODE}**\n"
         f"2. Complete your **KYC verification** (ID upload).\n"
         f"3. Once done, press the button below to claim ₦150.\n\n"
         f"⚠️ You must complete KYC to qualify.",
